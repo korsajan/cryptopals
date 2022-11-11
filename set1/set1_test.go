@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"strings"
 	"testing"
 )
@@ -44,26 +43,17 @@ func TestSet1Challenge3(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// key = 'X'
 	for i := 1; i <= 256; i++ {
 		_ = xorSingle(b, byte(i))
 	}
-
+	// found key = 'X'
 	fmt.Println(string(xorSingle(b, 'X')))
 }
 
+var corpup = mustBuildCorpus()
+
 func TestSet1Challenge4(t *testing.T) {
-	freqData, err := os.Open("./challengedata/freq.txt")
-	if err != nil {
-		t.Error(err)
-	}
-
-	freqMap, err := freqSymbol(freqData)
-	if err != nil {
-		t.Error(err)
-	}
-
-	data, err := ioutil.ReadFile("./challengedata/4.txt")
+	data, err := ioutil.ReadFile("./challengedata/challenge4.txt")
 	if err != nil {
 		t.Error(err)
 	}
@@ -73,7 +63,7 @@ func TestSet1Challenge4(t *testing.T) {
 	var scanner = bufio.NewScanner(bytes.NewReader(data))
 	scanner.Split(bufio.ScanLines)
 	for scanner.Scan() {
-		candidate, _, s := searchSingleXor(mustDecodeHex(scanner.Text()), freqMap)
+		candidate, _, s := searchSingleXor(mustDecodeHex(scanner.Text()), corpup)
 		if s > bestScore {
 			bestScore = s
 			res = candidate
@@ -90,4 +80,25 @@ func TestSet1Challenge5(t *testing.T) {
 	if !bytes.Equal(mustDecodeHex(cipherText), res) {
 		t.Errorf("wrong result %s\n", res)
 	}
+}
+
+func TestSet1Challenge6(t *testing.T) {
+	data, err := ioutil.ReadFile("./challengedata/challenge5.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	cipherText := mustBase64ToBinary(string(data))
+	keySize := searchKeySize(cipherText)
+
+	var buf, key bytes.Buffer
+	for i := 0; i < keySize; i++ {
+		// padding buffer get 0 29 0 58  1 30 1 59 etc
+		for j := 0; j < keySize; j++ {
+			buf.WriteByte(cipherText[j*keySize+i])
+		}
+		c := searchSingleXorKey(buf.Bytes(), corpup)
+		key.WriteByte(c)
+		buf.Reset()
+	}
+	t.Logf("key is \"%s\"\n", key.String())
 }

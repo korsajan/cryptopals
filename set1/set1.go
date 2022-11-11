@@ -7,9 +7,14 @@ import (
 	"errors"
 	"io"
 	"log"
+	"math"
+	"math/bits"
+	"os"
 	"strings"
 	"unicode/utf8"
 )
+
+const corpusPath = "./challengedata/corpus.txt"
 
 // challenge 1
 func hexToBase64(str string) (string, error) {
@@ -85,6 +90,10 @@ func freqSymbol(r io.Reader) (map[rune]float64, error) {
 	return freq, nil
 }
 
+func searchSingleXorKey(b []byte, freqMap map[rune]float64) byte {
+	_, k, _ := searchSingleXor(b, freqMap)
+	return k
+}
 func searchSingleXor(b []byte, freqMap map[rune]float64) ([]byte, byte, float64) {
 	var res []byte
 	var k byte
@@ -109,10 +118,58 @@ func repeatedXor(text []byte, key []byte) []byte {
 	return out
 }
 
+func hammingDistance(a, b []byte) float64 {
+	if len(a) != len(b) {
+		return -1
+	}
+
+	var distance float64
+	for i := 0; i < len(a); i++ {
+		n := bits.OnesCount8(a[i] ^ b[i])
+		distance += float64(n)
+	}
+	return distance
+}
+
+func searchKeySize(b []byte) int {
+	var keySize, bestScore = 2, math.MaxFloat64
+	for size := keySize; size <= 40; size++ {
+		x := b[:size*8]
+		y := b[size*8 : size*8*2]
+		s := hammingDistance(x, y) / float64(size)
+		if s < bestScore {
+			keySize = size
+			bestScore = s
+		}
+	}
+	return keySize
+}
+
 func mustDecodeHex(text string) []byte {
 	b, err := hex.DecodeString(text)
 	if err != nil {
 		panic(err)
 	}
 	return b
+}
+
+func mustBuildCorpus() map[rune]float64 {
+	freqData, err := os.Open(corpusPath)
+	if err != nil {
+		panic(err)
+	}
+
+	freqMap, err := freqSymbol(freqData)
+	if err != nil {
+		panic(err)
+	}
+	return freqMap
+}
+
+func mustBase64ToBinary(text string) []byte {
+	binaryText, err := base64.StdEncoding.DecodeString(text)
+	if err != nil {
+		panic("err decode text to binary")
+	}
+	return binaryText
 }
