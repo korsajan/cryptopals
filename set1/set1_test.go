@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"strings"
 	"testing"
 )
@@ -53,14 +52,11 @@ func TestSet1Challenge3(t *testing.T) {
 var corpup = mustBuildCorpus()
 
 func TestSet1Challenge4(t *testing.T) {
-	data, err := ioutil.ReadFile("./challengedata/challenge4.txt")
-	if err != nil {
-		t.Error(err)
-	}
+	fileBody := mustLoadFile("./challengedata/challenge4.txt")
 
 	bestScore := float64(0)
 	var res []byte
-	var scanner = bufio.NewScanner(bytes.NewReader(data))
+	var scanner = bufio.NewScanner(bytes.NewReader(fileBody))
 	scanner.Split(bufio.ScanLines)
 	for scanner.Scan() {
 		candidate, _, s := searchSingleXor(mustDecodeHex(scanner.Text()), corpup)
@@ -83,11 +79,8 @@ func TestSet1Challenge5(t *testing.T) {
 }
 
 func TestSet1Challenge6(t *testing.T) {
-	data, err := ioutil.ReadFile("./challengedata/challenge5.txt")
-	if err != nil {
-		t.Error(err)
-	}
-	cipherText := mustBase64ToBinary(string(data))
+	fileBody := mustLoadFile("./challengedata/challenge6.txt")
+	cipherText := mustBase64ToBinary(string(fileBody))
 	keySize := searchKeySize(cipherText)
 
 	var buf, key bytes.Buffer
@@ -101,4 +94,24 @@ func TestSet1Challenge6(t *testing.T) {
 		buf.Reset()
 	}
 	t.Logf("key is \"%s\"\n", key.String())
+}
+
+func TestSet1Challenge7(t *testing.T) {
+	fileBody := mustLoadFile("./challengedata/challenge7.txt")
+	key := []byte("YELLOW SUBMARINE")
+	plainText, err := ecbDecrypt(mustBase64ToBinary(string(fileBody)), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// first line
+	t.Logf("plain text:\n%s\n", string(plainText)[:34])
+}
+
+func TestSet1Challenge8(t *testing.T) {
+	fileBody := mustLoadFile("./challengedata/challenge8.txt")
+	for i, line := range strings.Split(string(fileBody), "\n") {
+		if ecbDetected(mustDecodeHex(line)) {
+			t.Logf("detected ecb in row %d\n", i+1)
+		}
+	}
 }

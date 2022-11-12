@@ -2,10 +2,12 @@ package set1
 
 import (
 	"bufio"
+	"crypto/aes"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"io"
+	"io/ioutil"
 	"log"
 	"math"
 	"math/bits"
@@ -172,4 +174,39 @@ func mustBase64ToBinary(text string) []byte {
 		panic("err decode text to binary")
 	}
 	return binaryText
+}
+
+func mustLoadFile(path string) []byte {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
+func ecbDecrypt(b []byte, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	blockSize := block.BlockSize()
+	buf := make([]byte, len(b))
+	for i := 0; i < len(b); i += blockSize {
+		block.Decrypt(buf[i:], b[i:])
+	}
+	return buf, err
+}
+
+func ecbDetected(b []byte) bool {
+	var seen = make(map[string]struct{})
+	for i := 0; i < len(b); i += aes.BlockSize {
+		s := string(b[i : i+aes.BlockSize])
+		_, ok := seen[s]
+		if ok {
+			return true
+		}
+		seen[s] = struct{}{}
+	}
+	return false
 }
