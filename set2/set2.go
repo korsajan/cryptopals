@@ -60,6 +60,23 @@ func decryptedCBC(cipherText []byte, block cipher.Block, iv []byte) []byte {
 	}
 	return plainText
 }
+func encryptedECB(plainText []byte, block cipher.Block) []byte {
+	var buf = make([]byte, len(plainText))
+	blockSize := block.BlockSize()
+	for i := 0; i < len(plainText); i += blockSize {
+		block.Encrypt(buf[i:], plainText[i:])
+	}
+
+	return buf
+}
+func decryptedECB(cipherText []byte, block cipher.Block) []byte {
+	blockSize := block.BlockSize()
+	buf := make([]byte, len(cipherText))
+	for i := 0; i < len(cipherText); i += blockSize {
+		block.Decrypt(buf[i:], cipherText[i:])
+	}
+	return buf
+}
 
 func xorBytes(a, b []byte) []byte {
 	if len(a) > len(b) {
