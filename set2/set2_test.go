@@ -30,6 +30,21 @@ func TestSet2Challenge10(t *testing.T) {
 	t.Logf("decrypted res:\n%s", decryptedCBC(data, b, iv))
 }
 
+func TestSet2Challenge11(t *testing.T) {
+	b := bytes.Repeat([]byte{1}, 3*16)
+	ecb, cbc := 0, 0
+	for i := 0; i < 100; i++ {
+		out := newOracle()(b)
+		if ecbDetected(out) {
+			ecb++
+		} else {
+			cbc++
+		}
+	}
+
+	t.Logf("ecb : %d cbc : %d\n", ecb, cbc)
+}
+
 func decodeBase64(t *testing.T, s string) []byte {
 	t.Helper()
 	v, err := base64.StdEncoding.DecodeString(s)

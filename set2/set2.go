@@ -2,7 +2,11 @@ package set2
 
 import (
 	"bytes"
+	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
+	mathrand "math/rand"
+	"time"
 )
 
 func paddingPKCS7(b []byte, size int) []byte {
@@ -69,14 +73,6 @@ func encryptedECB(plainText []byte, block cipher.Block) []byte {
 
 	return buf
 }
-func decryptedECB(cipherText []byte, block cipher.Block) []byte {
-	blockSize := block.BlockSize()
-	buf := make([]byte, len(cipherText))
-	for i := 0; i < len(cipherText); i += blockSize {
-		block.Decrypt(buf[i:], cipherText[i:])
-	}
-	return buf
-}
 
 func xorBytes(a, b []byte) []byte {
 	if len(a) > len(b) {
@@ -87,4 +83,58 @@ func xorBytes(a, b []byte) []byte {
 		out[i] = a[i] ^ b[i]
 	}
 	return out
+}
+
+var source = mathrand.New(mathrand.NewSource(time.Now().UnixNano()))
+
+type oracle func([]byte) []byte
+
+func withPaddingOracle(b []byte) []byte {
+	suffix := make([]byte, 5+source.Intn(5))
+	prefix := make([]byte, 5+source.Intn(5))
+
+	_, _ = rand.Read(suffix)
+	_, _ = rand.Read(prefix)
+
+	return paddingPKCS7(append(append(suffix, b...), prefix...), 16)
+}
+
+func newOracle() oracle {
+	block := mustBuildCipherBlock()
+	// 0 - ecb  1 - cbc aes mode
+	switch i := source.Intn(2); i {
+	case 0:
+		return func(b []byte) []byte {
+			return encryptedECB(withPaddingOracle(b), block)
+		}
+	default:
+		iv := make([]byte, 16)
+		_, _ = rand.Read(iv)
+		return func(b []byte) []byte {
+			return encryptedCBC(withPaddingOracle(b), block, iv)
+		}
+	}
+}
+
+func ecbDetected(b []byte) bool {
+	var seen = make(map[string]struct{})
+	for i := 0; i < len(b); i += aes.BlockSize {
+		s := string(b[i : i+aes.BlockSize])
+		_, ok := seen[s]
+		if ok {
+			return true
+		}
+		seen[s] = struct{}{}
+	}
+	return false
+}
+
+func mustBuildCipherBlock() cipher.Block {
+	var randomKey = make([]byte, 16)
+	_, _ = rand.Read(randomKey)
+	block, err := aes.NewCipher(randomKey)
+	if err != nil {
+		panic(err)
+	}
+	return block
 }
